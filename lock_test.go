@@ -86,6 +86,34 @@ func TestLockExclusive(t *testing.T) {
 	}
 }
 
+func TestEnsureIndexes(t *testing.T) {
+	coll := setup(t)
+	defer teardown(t, coll)
+
+	client := lock.NewClient(coll.Database.Session, coll.Database.Name, coll.Name)
+	client.EnsureIndexes()
+
+	indexes, err := coll.Indexes()
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedIndexes := []mgo.Index{
+		{Key: []string{"_id"}, Name: "_id_"},
+		{Key: []string{"exclusive.ExpiresAt"}, Name: "exclusive.ExpiresAt_1"},
+		{Key: []string{"exclusive.LockId"}, Name: "exclusive.LockId_1"},
+		{Key: []string{"resource"}, Name: "resource_1", Unique: true,  Sparse: true},
+		{Key: []string{"shared.locks.ExpiresAt"}, Name: "shared.locks.ExpiresAt_1"},
+		{Key: []string{"shared.locks.LockId"}, Name: "shared.locks.LockId_1"},
+	}
+
+	for i, idx := range indexes {
+		if diff := deep.Equal(idx, expectedIndexes[i]); diff != nil {
+			t.Error(diff)
+		}
+	}
+}
+
 func TestLockShared(t *testing.T) {
 	coll := setup(t)
 	defer teardown(t, coll)
@@ -252,8 +280,8 @@ func TestUnlockOrder(t *testing.T) {
 	}
 
 	actual := []string{}
-	for _, lock := range unlocked {
-		actual = append(actual, lock.Resource)
+	for _, l := range unlocked {
+		actual = append(actual, l.Resource)
 	}
 
 	expected := []string{"resource2", "resource4", "resource1"}
@@ -773,8 +801,8 @@ func validateLockStatuses(actual, expected []lock.LockStatus) error {
 
 	// Zero out some of the fields in the actual LockStatuses that make
 	// it hard to do comparisons and also aren't necessary for this function.
-	for i, lock := range actualSorted {
-		tmp := lock
+	for i, l := range actualSorted {
+		tmp := l
 		tmp.CreatedAt = time.Time{}
 		tmp.RenewedAt = nil
 		tmp.TTL = 0

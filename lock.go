@@ -125,6 +125,31 @@ func NewClient(session *mgo.Session, db, collection string) *Client {
 	}
 }
 
+// EnsureIndexes ensures that given indexes exist in the mongo database.
+// Method creates indexes if they don't exist, or skips index creation if they do exist.
+func (c *Client) EnsureIndexes() error {
+	lockCollection := c.session.DB(c.db).C(c.collection)
+	indexes := []mgo.Index{
+		{
+			Key:        []string{"resource"},
+			Unique:     true,
+			DropDups:   true,
+			Background: false,
+			Sparse:     true,
+		},
+		{Key: []string{"exclusive.LockId"}},
+		{Key: []string{"exclusive.ExpiresAt"}},
+		{Key: []string{"shared.locks.LockId"}},
+		{Key: []string{"shared.locks.ExpiresAt"}},
+	}
+	for _, idx := range indexes {
+		if err := lockCollection.EnsureIndex(idx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // XLock creates an exclusive lock on a resource and associates it with the
 // provided lockId. Additional details about the lock can be supplied via
 // LockDetails.
