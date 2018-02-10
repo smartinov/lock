@@ -31,6 +31,8 @@ db.locks.createIndex( { "shared.locks.LockId": 1 } )
 db.locks.createIndex( { "shared.locks.ExpiresAt": 1 } )
 ```
 
+This can also be achieved by calling client.EnsureIndexes() which will create the required indexes for the collection.
+
 #### Recommended Write Concern
 To minimize the risk of losing locks when one or more nodes in your replica set fail, setting the write acknowledgement for the session to "majority" is recommended.
 
@@ -60,6 +62,8 @@ func main() {
 
 	// Create a MongoDB lock client.
 	c := lock.NewClient(session, database, collection)
+	// Ensure that required indexes exist
+    c.EnsureIndexes()
 
 	lockId := "abcd1234"
 
@@ -138,6 +142,7 @@ Note: shared locks are stored as an array instead of a map (keyed on lockId) so 
 This helps with the performance of unlocking, renewing, and getting the status of locks.
 
 ## Tests
+
 By default, tests expect a MongoDB instance to be running at "localhost:3000", and they write to a db "test" and randomly generated collection name.
 These defaults, however, can be overwritten with environment variables.
 ```
@@ -145,6 +150,9 @@ export TEST_MONGO_URL="your_url"
 export TEST_MONGO_DB="your_db"
 ```
 The randomly generated collection is dropped after each test.
+
+Easiest way to run mongo database for testing tests if docker is present is to run ``docker run --rm -p "3000:27017" mongo`` which will start a
+mongo instance on the default port 3000 of localhost, and will remove the image afterwards.
 
 Run the tests from the root directory of this repo like so:
 ```
